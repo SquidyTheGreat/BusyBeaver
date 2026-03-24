@@ -131,7 +131,12 @@ def create_or_update_event(task, integration):
         'description': description,
         'start': {'dateTime': task.scheduled_start.isoformat(), 'timeZone': settings.TIME_ZONE},
         'end': {'dateTime': task.scheduled_end.isoformat(), 'timeZone': settings.TIME_ZONE},
+        # Graphite (grey) for completed tasks so they stand out as done
+        'colorId': '8' if task.status == 'completed' else None,
     }
+    # Google Calendar rejects colorId: null — remove it when not overriding
+    if event_body['colorId'] is None:
+        del event_body['colorId']
 
     if task.google_event_id:
         try:

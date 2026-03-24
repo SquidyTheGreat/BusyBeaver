@@ -1,3 +1,4 @@
+from django.db import models
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.views.decorators.http import require_POST
@@ -112,6 +113,17 @@ def task_complete(request, task_id):
     from scheduling.services.schedules_tasks import ScheduleTask
     ScheduleTask.update_task_estimates()
 
+    # Mark event grey on Google Calendar
+    if task.google_event_id:
+        try:
+            from scheduling.models import CalendarIntegration
+            from scheduling.services.google_calendar import create_or_update_event
+            integration = CalendarIntegration.objects.filter(is_active=True).first()
+            if integration:
+                create_or_update_event(task, integration)
+        except Exception:
+            pass
+
     # Reset recurring tasks back to pending for next occurrence
     if task.recurrence != Task.RECUR_NONE:
         task.status = Task.STATUS_PENDING
@@ -157,6 +169,61 @@ def task_cancel(request, task_id):
     return redirect('task_list')
 
 
+# ── Labels ────────────────────────────────────────────────────────────────────
+
+def label_list(request):
+    from .models import Label
+    labels = Label.objects.annotate(task_count=models.Count('tasks')).order_by('name')
+    return render(request, 'tasks/label_list.html', {'labels': labels})
+
+
+def label_create(request):
+    from .models import Label
+    from django import forms as dj_forms
+
+    class LabelForm(dj_forms.ModelForm):
+        class Meta:
+            model = Label
+            fields = ['name', 'color']
+            widgets = {'color': dj_forms.TextInput(attrs={'type': 'color'})}
+
+    form = LabelForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        label = form.save()
+        messages.success(request, f'Label "{label.name}" created.')
+        return redirect('label_list')
+    return render(request, 'tasks/label_form.html', {'form': form, 'title': 'New Label'})
+
+
+def label_edit(request, label_id):
+    from .models import Label
+    from django import forms as dj_forms
+
+    class LabelForm(dj_forms.ModelForm):
+        class Meta:
+            model = Label
+            fields = ['name', 'color']
+            widgets = {'color': dj_forms.TextInput(attrs={'type': 'color'})}
+
+    label = get_object_or_404(Label, id=label_id)
+    form = LabelForm(request.POST or None, instance=label)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, f'Label "{label.name}" updated.')
+        return redirect('label_list')
+    return render(request, 'tasks/label_form.html', {'form': form, 'title': 'Edit Label', 'label': label})
+
+
+@require_POST
+def label_delete(request, label_id):
+    from .models import Label
+    label = get_object_or_404(Label, id=label_id)
+    name = label.name
+    label.delete()
+    messages.success(request, f'Label "{name}" deleted.')
+    return redirect('label_list')
+
+
 # ── Health log ────────────────────────────────────────────────────────────────
 
 def health_list(request):
@@ -177,11 +244,35 @@ def health_create(request):
 
 def feedback_form(request, token):
     task = get_object_or_404(Task, feedback_token=token)
-    form = FeedbackForm(request.POST or None)
+    initial = {}
+    if task.scheduled_start:
+        initial['actual_start'] = task.scheduled_start
+    if task.scheduled_end:
+        initial['actual_end'] = task.scheduled_end
+    form = FeedbackForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
+        actual_start = form.cleaned_data.get('actual_start')
+        actual_end = form.cleaned_data.get('actual_end')
+        if actual_start and actual_end:
+            actual_start = timezone.make_aware(actual_start) if actual_start.tzinfo is None else actual_start
+            actual_end = timezone.make_aware(actual_end) if actual_end.tzinfo is None else actual_end
+
         fb = form.save(commit=False)
         fb.task = task
+        if actual_start and actual_end:
+            fb.actual_duration_minutes = max(1, round((actual_end - actual_start).total_seconds() / 60))
         fb.save()
+
+        if actual_start and actual_end:
+            ExecutionLog.objects.create(
+                task=task,
+                scheduled_start=task.scheduled_start,
+                actual_start=actual_start,
+                actual_end=actual_end,
+                status=ExecutionLog.STATUS_COMPLETED,
+                notes='Logged via feedback form',
+            )
+
         return redirect('feedback_thanks', token=token)
     return render(request, 'feedback/form.html', {'form': form, 'task': task})
 

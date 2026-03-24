@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Labels — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Labels</h2>
+  <a href="/labels/new/" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Label</a>
+</div>
+
+{% if labels %}
+<div class="row g-3">
+  {% for label in labels %}
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <span class="rounded-circle d-inline-block" style="width:18px;height:18px;background:{{ label.color }}"></span>
+          <span class="fw-semibold">{{ label.name }}</span>
+          <span class="text-muted small">{{ label.task_count }} task{{ label.task_count|pluralize }}</span>
+        </div>
+        <div>
+          <a href="/labels/{{ label.id }}/edit/" class="btn btn-outline-secondary btn-sm py-0 px-1"><i class="bi bi-pencil"></i></a>
+          <form method="post" action="/labels/{{ label.id }}/delete/" class="d-inline" onsubmit="return confirm('Delete label \'{{ label.name }}\'?')">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger btn-sm py-0 px-1"><i class="bi bi-trash3"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-tags fs-1"></i>
+  <p class="mt-2">No labels yet. <a href="/labels/new/">Create one</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

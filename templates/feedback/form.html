@@ -9,34 +9,83 @@
     <p class="text-muted small">Your feedback helps BusyBeaver improve future scheduling estimates.</p>
     <form method="post">
       {% csrf_token %}
-      {% for field in form %}
-      <div class="mb-3">
-        <label class="form-label fw-semibold">{{ field.label }}</label>
-        {% if field.name == 'difficulty' %}
-        <div class="d-flex gap-3">
-          {% for choice_val, choice_label in field.field.choices %}
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="diff_{{ choice_val }}" value="{{ choice_val }}"
-              {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
-            <label class="form-check-label" for="diff_{{ choice_val }}">{{ choice_val }}</label>
-          </div>
-          {% endfor %}
+
+      <h6 class="text-muted mb-2">Execution time <span class="fw-normal">(optional)</span></h6>
+      <div class="row g-2 mb-1">
+        <div class="col">
+          <label class="form-label fw-semibold" for="{{ form.actual_start.id_for_label }}">{{ form.actual_start.label }}</label>
+          {{ form.actual_start }}
+          {% for error in form.actual_start.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
-        {% elif field.name == 'completed' %}
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="{{ field.html_name }}" id="{{ field.html_name }}"
-            {% if field.value %}checked{% endif %}>
-          <label class="form-check-label" for="{{ field.html_name }}">I completed this task</label>
+        <div class="col">
+          <label class="form-label fw-semibold" for="{{ form.actual_end.id_for_label }}">{{ form.actual_end.label }}</label>
+          {{ form.actual_end }}
+          {% for error in form.actual_end.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
-        {% else %}
-          {{ field }}
-        {% endif %}
-        {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
-        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
       </div>
+      <div id="duration-display" class="text-muted small mb-3"></div>
+
+      <hr>
+
+      {% for field in form %}
+        {% if field.name != 'actual_start' and field.name != 'actual_end' %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ field.label }}</label>
+          {% if field.name == 'difficulty' %}
+          <div class="d-flex gap-3">
+            {% for choice_val, choice_label in field.field.choices %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="diff_{{ choice_val }}" value="{{ choice_val }}"
+                {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
+              <label class="form-check-label" for="diff_{{ choice_val }}">{{ choice_val }}</label>
+            </div>
+            {% endfor %}
+          </div>
+          {% elif field.name == 'completed' %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="{{ field.html_name }}" id="{{ field.html_name }}"
+              {% if field.value %}checked{% endif %}>
+            <label class="form-check-label" for="{{ field.html_name }}">I completed this task</label>
+          </div>
+          {% else %}
+            {{ field }}
+          {% endif %}
+          {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        {% endif %}
       {% endfor %}
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
       <button type="submit" class="btn btn-primary">Submit Feedback</button>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const startEl = document.getElementById('{{ form.actual_start.id_for_label }}');
+const endEl   = document.getElementById('{{ form.actual_end.id_for_label }}');
+const display = document.getElementById('duration-display');
+
+function updateDuration() {
+  const s = startEl.value ? new Date(startEl.value) : null;
+  const e = endEl.value   ? new Date(endEl.value)   : null;
+  if (s && e && e > s) {
+    const mins = Math.round((e - s) / 60000);
+    const h = Math.floor(mins / 60), m = mins % 60;
+    display.textContent = 'Duration: ' + (h ? h + 'h ' : '') + m + 'm';
+  } else {
+    display.textContent = '';
+  }
+}
+
+startEl.addEventListener('change', updateDuration);
+endEl.addEventListener('change', updateDuration);
+updateDuration();
+</script>
 {% endblock %}

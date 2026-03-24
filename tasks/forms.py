@@ -110,13 +110,31 @@ class HealthLogForm(forms.ModelForm):
 
 
 class FeedbackForm(forms.ModelForm):
+    actual_start = forms.DateTimeField(
+        required=False,
+        label='Start time',
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+    )
+    actual_end = forms.DateTimeField(
+        required=False,
+        label='End time',
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+    )
+
     class Meta:
         model = FeedbackResponse
-        fields = ['difficulty', 'actual_duration_minutes', 'completed', 'notes']
+        fields = ['difficulty', 'completed', 'notes']
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3}),
         }
         labels = {
             'difficulty': 'How difficult was it? (1 = very easy, 5 = very hard)',
-            'actual_duration_minutes': 'How long did it actually take? (minutes)',
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get('actual_start')
+        end = cleaned.get('actual_end')
+        if start and end and end <= start:
+            raise forms.ValidationError('End time must be after start time.')
+        return cleaned
