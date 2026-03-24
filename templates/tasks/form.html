@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ title }}</h2>
+  {% if task %}<a href="/tasks/{{ task.id }}/" class="btn btn-outline-secondary btn-sm">Cancel</a>{% else %}<a href="/" class="btn btn-outline-secondary btn-sm">Cancel</a>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.field.widget.input_type == 'checkbox' or field.field.widget|stringformat:"s" contains "CheckboxSelectMultiple" %}
+          {{ field }}
+        {% else %}
+          <div>{{ field }}</div>
+        {% endif %}
+        {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      {% endfor %}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Show/hide recur_days based on recurrence selection
+const recur = document.getElementById('id_recurrence');
+const recurDaysRow = document.querySelector('.mb-3:has(#id_recur_days_0)');
+const recurTimeRow = document.querySelector('.mb-3:has(#id_recur_time)');
+function updateRecurFields() {
+  const v = recur ? recur.value : '';
+  if (recurDaysRow) recurDaysRow.style.display = (v === 'weekly') ? '' : 'none';
+  if (recurTimeRow) recurTimeRow.style.display = (v !== 'none') ? '' : 'none';
+}
+if (recur) { recur.addEventListener('change', updateRecurFields); updateRecurFields(); }
+</script>
+{% endblock %}

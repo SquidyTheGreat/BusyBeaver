@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Schedule — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h2 class="mb-0">Schedule</h2>
+    <div class="text-muted small">{{ target|date:"l, F j Y" }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/schedule/sync/" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-repeat"></i> Sync Calendar
+    </a>
+    <a href="/schedule/blocks/" class="btn btn-outline-secondary btn-sm">Manage Blocks</a>
+  </div>
+</div>
+
+<!-- Date picker + run scheduler -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" action="/schedule/run/" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-auto">
+        <label class="form-label mb-1 small fw-semibold">Schedule for date</label>
+        <input type="date" name="target_date" class="form-control form-control-sm" value="{{ target|date:'Y-m-d' }}">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm"><i class="bi bi-magic"></i> Auto-schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if blocks %}
+<h5>Time Blocks for {{ target|date:"l" }}</h5>
+<div class="row g-2 mb-4">
+  {% for block in blocks %}
+  <div class="col-md-4">
+    <div class="card border-primary">
+      <div class="card-body py-2">
+        <div class="fw-semibold">{{ block.name }}</div>
+        <div class="text-muted small">{{ block.start_time|time:"H:i" }} – {{ block.end_time|time:"H:i" }}</div>
+        {% if block.allowed_labels.exists %}
+        <div class="mt-1">
+          {% for l in block.allowed_labels.all %}
+          <span class="badge rounded-pill" style="background:{{ l.color }}">{{ l.name }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted small mt-1">All labels</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-light">No active schedule blocks for {{ target|date:"l" }}.
+  <a href="/schedule/blocks/new/">Create one</a>.
+</div>
+{% endif %}
+
+{% if scheduled_tasks %}
+<h5>Scheduled Tasks</h5>
+<div class="list-group">
+  {% for task in scheduled_tasks %}
+  <a href="/tasks/{{ task.id }}/" class="list-group-item list-group-item-action priority-{{ task.priority }} mb-1 rounded">
+    <div class="d-flex justify-content-between">
+      <div>
+        <strong>{{ task.name }}</strong>
+        {% for label in task.labels.all %}
+        <span class="badge rounded-pill ms-1" style="background:{{ label.color }}">{{ label.name }}</span>
+        {% endfor %}
+      </div>
+      <div class="text-end">
+        <span class="badge status-badge-{{ task.status }}">{{ task.get_status_display }}</span>
+        <div class="text-muted small">{{ task.scheduled_start|time:"H:i" }} – {{ task.scheduled_end|time:"H:i" }}</div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-muted text-center py-4">
+  No tasks scheduled for {{ target|date:"M j" }}. Run the auto-scheduler above.
+</div>
+{% endif %}
+{% endblock %}

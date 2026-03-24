@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log Health — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Log Health &amp; Status</h2>
+  <a href="/health/" class="btn btn-outline-secondary btn-sm">Cancel</a>
+</div>
+<div class="card mx-auto" style="max-width:560px">
+  <div class="card-body">
+    <p class="text-muted small mb-3">Tracking your energy, mood, and stress helps identify patterns in your task performance over time.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">{{ field.label }}</label>
+        {% if field.name == 'energy_level' or field.name == 'mood' or field.name == 'stress_level' %}
+        <div class="d-flex gap-3">
+          {% for choice_val, choice_label in field.field.choices %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="{{ field.html_name }}_{{ choice_val }}" value="{{ choice_val }}"
+              {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
+            <label class="form-check-label" for="{{ field.html_name }}_{{ choice_val }}">{{ choice_val }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          {{ field }}
+        {% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

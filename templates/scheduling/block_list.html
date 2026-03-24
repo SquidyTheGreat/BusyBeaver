@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Schedule Blocks — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Schedule Blocks</h2>
+  <a href="/schedule/blocks/new/" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Block</a>
+</div>
+<p class="text-muted small">Schedule blocks define recurring time windows available for task scheduling. Label restrictions limit which tasks can fill a block.</p>
+
+{% if blocks %}
+<div class="row g-3">
+  {% for block in blocks %}
+  <div class="col-md-4">
+    <div class="card {% if not block.is_active %}opacity-50{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h6 class="card-title mb-1">{{ block.name }}</h6>
+          <div>
+            <a href="/schedule/blocks/{{ block.id }}/edit/" class="btn btn-outline-secondary btn-sm py-0 px-1">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/schedule/blocks/{{ block.id }}/delete/" class="d-inline" onsubmit="return confirm('Delete block?')">
+              {% csrf_token %}
+              <button class="btn btn-outline-danger btn-sm py-0 px-1"><i class="bi bi-trash3"></i></button>
+            </form>
+          </div>
+        </div>
+        {% if block.day_of_week is not None %}
+        <div class="text-muted small">Every {{ block.get_day_of_week_display }}</div>
+        {% elif block.specific_date %}
+        <div class="text-muted small">{{ block.specific_date|date:"M d Y" }}</div>
+        {% endif %}
+        <div class="fw-semibold">{{ block.start_time|time:"H:i" }} – {{ block.end_time|time:"H:i" }}</div>
+        {% if block.allowed_labels.exists %}
+        <div class="mt-2">
+          {% for l in block.allowed_labels.all %}
+          <span class="badge rounded-pill me-1" style="background:{{ l.color }}">{{ l.name }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted small mt-1">All labels allowed</div>
+        {% endif %}
+        {% if not block.is_active %}<span class="badge bg-secondary mt-1">Inactive</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-calendar-week fs-1"></i>
+  <p class="mt-2">No schedule blocks yet. <a href="/schedule/blocks/new/">Create one</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

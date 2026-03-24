@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Tasks — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Tasks</h2>
+  <a href="/tasks/new/" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Task</a>
+</div>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-auto">
+    <select name="status" class="form-select form-select-sm">
+      <option value="">All statuses</option>
+      {% for val, label in status_choices %}
+      <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="label" class="form-select form-select-sm">
+      <option value="">All labels</option>
+      {% for l in labels %}
+      <option value="{{ l.name }}" {% if l.name == label_filter %}selected{% endif %}>{{ l.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary btn-sm" type="submit">Filter</button>
+    <a href="/" class="btn btn-link btn-sm">Clear</a>
+  </div>
+</form>
+
+{% if tasks %}
+<div class="list-group">
+  {% for task in tasks %}
+  <a href="/tasks/{{ task.id }}/" class="list-group-item list-group-item-action priority-{{ task.priority }} mb-1 rounded">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <strong>{{ task.name }}</strong>
+        {% for label in task.labels.all %}
+        <span class="badge rounded-pill ms-1" style="background:{{ label.color }}">{{ label.name }}</span>
+        {% endfor %}
+        {% if task.recurrence != 'none' %}
+        <span class="badge bg-secondary ms-1"><i class="bi bi-arrow-repeat"></i> {{ task.get_recurrence_display }}</span>
+        {% endif %}
+      </div>
+      <div class="text-end">
+        <span class="badge status-badge-{{ task.status }}">{{ task.get_status_display }}</span>
+        <div class="text-muted small mt-1">{{ task.estimated_minutes }} min · P{{ task.priority }}</div>
+      </div>
+    </div>
+    {% if task.scheduled_start %}
+    <div class="text-muted small mt-1"><i class="bi bi-clock"></i> {{ task.scheduled_start|date:"D M d, H:i" }}</div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-inbox fs-1"></i>
+  <p class="mt-2">No tasks found. <a href="/tasks/new/">Create one</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

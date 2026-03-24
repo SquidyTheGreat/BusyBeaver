@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Task Feedback — BusyBeaver{% endblock %}
+{% block content %}
+<div class="card mx-auto" style="max-width:560px">
+  <div class="card-header">
+    <h5 class="mb-0">Feedback for: <em>{{ task.name }}</em></h5>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small">Your feedback helps BusyBeaver improve future scheduling estimates.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">{{ field.label }}</label>
+        {% if field.name == 'difficulty' %}
+        <div class="d-flex gap-3">
+          {% for choice_val, choice_label in field.field.choices %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="diff_{{ choice_val }}" value="{{ choice_val }}"
+              {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
+            <label class="form-check-label" for="diff_{{ choice_val }}">{{ choice_val }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif field.name == 'completed' %}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="{{ field.html_name }}" id="{{ field.html_name }}"
+            {% if field.value %}checked{% endif %}>
+          <label class="form-check-label" for="{{ field.html_name }}">I completed this task</label>
+        </div>
+        {% else %}
+          {{ field }}
+        {% endif %}
+        {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Submit Feedback</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

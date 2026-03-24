@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ task.name }} — BusyBeaver{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h2 class="mb-1">{{ task.name }}</h2>
+    <div>
+      <span class="badge status-badge-{{ task.status }}">{{ task.get_status_display }}</span>
+      <span class="badge bg-secondary ms-1">P{{ task.priority }} — {{ task.get_priority_display }}</span>
+      {% for label in task.labels.all %}
+      <span class="badge rounded-pill ms-1" style="background:{{ label.color }}">{{ label.name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="btn-group">
+    <a href="/tasks/{{ task.id }}/edit/" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="/tasks/{{ task.id }}/delete/" class="btn btn-outline-danger btn-sm">Delete</a>
+  </div>
+</div>
+
+{% if task.description %}
+<div class="card mb-3"><div class="card-body text-muted">{{ task.description|linebreaks }}</div></div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-4 fw-bold">{{ task.estimated_minutes }}</div>
+        <div class="text-muted small">Est. minutes</div>
+      </div>
+    </div>
+  </div>
+  {% if task.scheduled_start %}
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fw-bold">{{ task.scheduled_start|date:"D M d, H:i" }}</div>
+        <div class="text-muted small">Scheduled start</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if task.recurrence != 'none' %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fw-bold"><i class="bi bi-arrow-repeat"></i> {{ task.get_recurrence_display }}</div>
+        <div class="text-muted small">Recurrence</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if task.preferred_days %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fw-bold">
+          {% for d in task.preferred_days %}{{ d|stringformat:"s"|slice:"0:3" }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+        <div class="text-muted small">Preferred days (learned)</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Actions -->
+{% if task.status == 'pending' or task.status == 'scheduled' %}
+<form method="post" action="/tasks/{{ task.id }}/start/" class="d-inline">{% csrf_token %}
+  <button class="btn btn-success me-2"><i class="bi bi-play-fill"></i> Start</button>
+</form>
+<form method="post" action="/tasks/{{ task.id }}/skip/" class="d-inline">{% csrf_token %}
+  <button class="btn btn-outline-secondary me-2">Skip</button>
+</form>
+{% elif task.status == 'in_progress' %}
+<form method="post" action="/tasks/{{ task.id }}/complete/" class="d-inline">{% csrf_token %}
+  <button class="btn btn-success me-2"><i class="bi bi-check-lg"></i> Complete</button>
+</form>
+<form method="post" action="/tasks/{{ task.id }}/cancel/" class="d-inline">{% csrf_token %}
+  <button class="btn btn-outline-danger me-2">Cancel</button>
+</form>
+{% endif %}
+
+<!-- Execution history -->
+{% if executions %}
+<h5 class="mt-4">Execution History</h5>
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead><tr><th>Date</th><th>Status</th><th>Scheduled</th><th>Actual start</th><th>Duration</th><th>Delay</th></tr></thead>
+    <tbody>
+      {% for ex in executions %}
+      <tr>
+        <td>{{ ex.created_at|date:"M d, H:i" }}</td>
+        <td><span class="badge status-badge-{{ ex.status }}">{{ ex.get_status_display }}</span></td>
+        <td>{{ ex.scheduled_start|date:"H:i"|default:"—" }}</td>
+        <td>{{ ex.actual_start|date:"H:i"|default:"—" }}</td>
+        <td>{% if ex.actual_duration %}{{ ex.actual_duration }}{% else %}—{% endif %}</td>
+        <td>{% if ex.delay %}{{ ex.delay }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Move log -->
+{% if move_logs %}
+<h5 class="mt-4">Move History</h5>
+<ul class="list-unstyled">
+  {% for m in move_logs %}
+  <li class="text-muted small mb-1">
+    <i class="bi bi-arrow-right"></i>
+    {{ m.moved_at|date:"M d H:i" }} — moved from {{ m.from_start|date:"M d H:i" }} to {{ m.to_start|date:"M d H:i" }}
+    ({{ m.get_moved_by_display }}){% if m.reason %}: {{ m.reason }}{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<!-- Feedback -->
+{% if feedback %}
+<h5 class="mt-4">Feedback</h5>
+{% for fb in feedback %}
+<div class="card mb-2">
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between">
+      <span>Difficulty: {{ fb.difficulty }}/5 &mdash; {% if fb.completed %}Completed{% else %}Not completed{% endif %}</span>
+      <span class="text-muted small">{{ fb.submitted_at|date:"M d H:i" }}</span>
+    </div>
+    {% if fb.actual_duration_minutes %}<div class="small text-muted">Actual: {{ fb.actual_duration_minutes }} min</div>{% endif %}
+    {% if fb.notes %}<div class="small mt-1">{{ fb.notes }}</div>{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}
