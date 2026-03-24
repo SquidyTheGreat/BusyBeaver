@@ -45,6 +45,7 @@ def get_auth_url(request):
 
 def exchange_code(code, state):
     """Exchange an OAuth code for credentials. Returns a google.oauth2.credentials.Credentials object."""
+    import os
     from google_auth_oauthlib.flow import Flow
 
     flow = Flow.from_client_config(
@@ -53,6 +54,9 @@ def exchange_code(code, state):
         redirect_uri=settings.GOOGLE_REDIRECT_URI,
         state=state,
     )
+    # Allow Google to return a superset of the requested scopes (e.g. when the
+    # OAuth client already has broader grants from other apps).
+    os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
     flow.fetch_token(code=code)
     return flow.credentials
 
@@ -125,24 +129,34 @@ def create_or_update_event(task, integration):
     event_body = {
         'summary': task.name,
         'description': description,
-        'start': {'dateTime': task.scheduled_start.isoformat(), 'timeZone': 'UTC'},
-        'end': {'dateTime': task.scheduled_end.isoformat(), 'timeZone': 'UTC'},
+        'start': {'dateTime': task.scheduled_start.isoformat(), 'timeZone': settings.TIME_ZONE},
+        'end': {'dateTime': task.scheduled_end.isoformat(), 'timeZone': settings.TIME_ZONE},
     }
 
     if task.google_event_id:
-        event = service.events().update(
-            calendarId=integration.calendar_id,
-            eventId=task.google_event_id,
-            body=event_body,
-        ).execute()
-    else:
-        event = service.events().insert(
-            calendarId=integration.calendar_id,
-            body=event_body,
-        ).execute()
-        task.google_event_id = event['id']
-        task.save(update_fields=['google_event_id'])
+        try:
+            event = service.events().patch(
+                calendarId=integration.calendar_id,
+                eventId=task.google_event_id,
+                body=event_body,
+            ).execute()
+            return event
+        except Exception as exc:
+            # Event may have been deleted from Calendar or moved to a different
+            # calendar — clear the stale ID and fall through to insert.
+            logger.warning(
+                'Could not update event %s for task %s (%s); re-creating.',
+                task.google_event_id, task.id, exc,
+            )
+            task.google_event_id = ''
+            task.save(update_fields=['google_event_id'])
 
+    event = service.events().insert(
+        calendarId=integration.calendar_id,
+        body=event_body,
+    ).execute()
+    task.google_event_id = event['id']
+    task.save(update_fields=['google_event_id'])
     return event
 
 

@@ -6,10 +6,24 @@ from .models import Task, ScheduleBlock, HealthLog, FeedbackResponse, Label
 class DurationMinutesField(forms.IntegerField):
     """Accept duration as whole minutes; stores/retrieves as timedelta."""
     def to_python(self, value):
+        # Let IntegerField validate min/max against the raw integer first,
+        # then convert to timedelta so comparison operators work correctly.
         minutes = super().to_python(value)
         if minutes is not None:
             return timedelta(minutes=minutes)
         return None
+
+    def validate(self, value):
+        if isinstance(value, timedelta):
+            super().validate(int(value.total_seconds() // 60))
+        else:
+            super().validate(value)
+
+    def run_validators(self, value):
+        if isinstance(value, timedelta):
+            super().run_validators(int(value.total_seconds() // 60))
+        else:
+            super().run_validators(value)
 
     def prepare_value(self, value):
         if isinstance(value, timedelta):

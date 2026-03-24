@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone as dj_timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,8 @@ class ScheduleTask:
         result_details = []
 
         for block in applicable_blocks:
-            block_start = datetime.combine(target_date, block.start_time, tzinfo=timezone.utc)
-            block_end = datetime.combine(target_date, block.end_time, tzinfo=timezone.utc)
+            block_start = dj_timezone.make_aware(datetime.combine(target_date, block.start_time))
+            block_end = dj_timezone.make_aware(datetime.combine(target_date, block.end_time))
             cursor = block_start
 
             block_label_ids = set(block.allowed_labels.values_list('id', flat=True))
