@@ -82,6 +82,15 @@ def task_delete(request, task_id):
     task = get_object_or_404(Task, id=task_id)
     if request.method == 'POST':
         name = task.name
+        if task.google_event_id:
+            try:
+                from scheduling.models import CalendarIntegration
+                from scheduling.services.google_calendar import delete_event
+                integration = CalendarIntegration.objects.filter(is_active=True).first()
+                if integration:
+                    delete_event(task, integration)
+            except Exception:
+                pass
         task.delete()
         messages.success(request, f'Task "{name}" deleted.')
         return redirect('task_list')
