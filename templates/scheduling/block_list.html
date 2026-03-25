@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load label_tags %}
 {% block title %}Schedule Blocks — BusyBeaver{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -31,15 +32,15 @@
         <div class="text-muted small">{{ block.specific_date|date:"M d Y" }}</div>
         {% endif %}
         <div class="fw-semibold">{{ block.start_time|time:"H:i" }} – {{ block.end_time|time:"H:i" }}</div>
-        {% if block.allowed_labels.exists %}
         <div class="mt-2">
+          {% if block.allowed_labels.exists %}
           {% for l in block.allowed_labels.all %}
-          <span class="badge rounded-pill me-1" style="background:{{ l.color }}">{{ l.name }}</span>
+          <span class="badge rounded-pill me-1" style="background:{{ l.color|color_hex }}">{{ l.name }}</span>
           {% endfor %}
+          {% else %}
+          <span class="badge rounded-pill me-1 bg-secondary">All labels</span>
+          {% endif %}
         </div>
-        {% else %}
-        <div class="text-muted small mt-1">All labels allowed</div>
-        {% endif %}
         {% if not block.is_active %}<span class="badge bg-secondary mt-1">Inactive</span>{% endif %}
       </div>
     </div>
