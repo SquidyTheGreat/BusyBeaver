@@ -81,6 +81,55 @@ def task_delete(request, task_id):
     return render(request, 'tasks/confirm_delete.html', {'task': task})
 
 
+# ── Shared lifecycle helpers ──────────────────────────────────────────────────
+
+def _mark_task_complete(task):
+    log = task.executions.filter(status=ExecutionLog.STATUS_IN_PROGRESS).order_by('-actual_start').first()
+    if log:
+        log.actual_end = timezone.now()
+        log.status = ExecutionLog.STATUS_COMPLETED
+        log.save()
+    task.status = Task.STATUS_COMPLETED
+    task.save(update_fields=['status'])
+    from scheduling.services.schedules_tasks import ScheduleTask
+    ScheduleTask.update_task_estimates()
+    if task.google_event_id:
+        try:
+            from scheduling.models import CalendarIntegration
+            from scheduling.services.google_calendar import create_or_update_event
+            integration = CalendarIntegration.objects.filter(is_active=True).first()
+            if integration:
+                create_or_update_event(task, integration)
+        except Exception:
+            pass
+
+
+def _mark_task_skip(task):
+    log = task.executions.filter(status=ExecutionLog.STATUS_IN_PROGRESS).order_by('-actual_start').first()
+    if log:
+        log.status = ExecutionLog.STATUS_SKIPPED
+        log.save()
+    else:
+        ExecutionLog.objects.create(
+            task=task,
+            scheduled_start=task.scheduled_start,
+            actual_start=timezone.now(),
+            actual_end=timezone.now(),
+            status=ExecutionLog.STATUS_SKIPPED,
+        )
+    task.status = Task.STATUS_SKIPPED
+    task.save(update_fields=['status'])
+    if task.google_event_id:
+        try:
+            from scheduling.models import CalendarIntegration
+            from scheduling.services.google_calendar import create_or_update_event
+            integration = CalendarIntegration.objects.filter(is_active=True).first()
+            if integration:
+                create_or_update_event(task, integration)
+        except Exception:
+            pass
+
+
 # ── Task lifecycle actions ────────────────────────────────────────────────────
 
 @require_POST
@@ -101,29 +150,7 @@ def task_start(request, task_id):
 @require_POST
 def task_complete(request, task_id):
     task = get_object_or_404(Task, id=task_id)
-    log = task.executions.filter(status=ExecutionLog.STATUS_IN_PROGRESS).order_by('-actual_start').first()
-    if log:
-        log.actual_end = timezone.now()
-        log.status = ExecutionLog.STATUS_COMPLETED
-        log.save()
-    task.status = Task.STATUS_COMPLETED
-    task.save(update_fields=['status'])
-
-    # Update estimates based on all completed executions
-    from scheduling.services.schedules_tasks import ScheduleTask
-    ScheduleTask.update_task_estimates()
-
-    # Mark event grey on Google Calendar
-    if task.google_event_id:
-        try:
-            from scheduling.models import CalendarIntegration
-            from scheduling.services.google_calendar import create_or_update_event
-            integration = CalendarIntegration.objects.filter(is_active=True).first()
-            if integration:
-                create_or_update_event(task, integration)
-        except Exception:
-            pass
-
+    _mark_task_complete(task)
     messages.success(request, f'Completed "{task.name}".')
     return redirect('task_detail', task_id=task.id)
 
@@ -131,31 +158,7 @@ def task_complete(request, task_id):
 @require_POST
 def task_skip(request, task_id):
     task = get_object_or_404(Task, id=task_id)
-    log = task.executions.filter(status=ExecutionLog.STATUS_IN_PROGRESS).order_by('-actual_start').first()
-    if log:
-        log.status = ExecutionLog.STATUS_SKIPPED
-        log.save()
-    else:
-        ExecutionLog.objects.create(
-            task=task,
-            scheduled_start=task.scheduled_start,
-            actual_start=timezone.now(),
-            actual_end=timezone.now(),
-            status=ExecutionLog.STATUS_SKIPPED,
-        )
-    task.status = Task.STATUS_SKIPPED
-    task.save(update_fields=['status'])
-
-    if task.google_event_id:
-        try:
-            from scheduling.models import CalendarIntegration
-            from scheduling.services.google_calendar import create_or_update_event
-            integration = CalendarIntegration.objects.filter(is_active=True).first()
-            if integration:
-                create_or_update_event(task, integration)
-        except Exception:
-            pass
-
+    _mark_task_skip(task)
     messages.info(request, f'Skipped "{task.name}".')
     return redirect('task_list')
 
@@ -255,6 +258,8 @@ def feedback_form(request, token):
         initial['actual_end'] = task.scheduled_end
     form = FeedbackForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
+        action = request.POST.get('action', 'complete')
+
         actual_start = form.cleaned_data.get('actual_start')
         actual_end = form.cleaned_data.get('actual_end')
         if actual_start and actual_end:
@@ -267,17 +272,29 @@ def feedback_form(request, token):
             fb.actual_duration_minutes = max(1, round((actual_end - actual_start).total_seconds() / 60))
         fb.save()
 
-        if actual_start and actual_end:
+        if action == 'skip':
             ExecutionLog.objects.create(
                 task=task,
                 scheduled_start=task.scheduled_start,
-                actual_start=actual_start,
-                actual_end=actual_end,
-                status=ExecutionLog.STATUS_COMPLETED,
+                actual_start=timezone.now(),
+                actual_end=timezone.now(),
+                status=ExecutionLog.STATUS_SKIPPED,
                 notes='Logged via feedback form',
             )
+            _mark_task_skip(task)
+        else:
+            if actual_start and actual_end:
+                ExecutionLog.objects.create(
+                    task=task,
+                    scheduled_start=task.scheduled_start,
+                    actual_start=actual_start,
+                    actual_end=actual_end,
+                    status=ExecutionLog.STATUS_COMPLETED,
+                    notes='Logged via feedback form',
+                )
+            _mark_task_complete(task)
 
-        if request.POST.get('next') == 'health':
+        if action == 'health':
             return redirect('health_create')
         return redirect('feedback_thanks', token=token)
     return render(request, 'feedback/form.html', {'form': form, 'task': task})

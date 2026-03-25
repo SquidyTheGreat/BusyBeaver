@@ -60,8 +60,9 @@
       <div class="alert alert-danger">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <button type="submit" name="next" value="" class="btn btn-primary">Submit Feedback</button>
-      <button type="submit" name="next" value="health" class="btn btn-outline-secondary ms-2">Submit &amp; Log Health</button>
+      <button type="submit" name="action" value="complete" class="btn btn-primary">Submit Feedback</button>
+      <button type="submit" name="action" value="health" class="btn btn-outline-secondary ms-2">Submit &amp; Log Health</button>
+      <button type="submit" name="action" value="skip" class="btn btn-outline-warning ms-2">Skip Task</button>
     </form>
   </div>
 </div>
