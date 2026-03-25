@@ -24,7 +24,7 @@ Auto-scheduler and Google Calendar sync. Fills schedule blocks with priority-sor
 Single dashboard view. Aggregates metrics over the last 30 days: skip rate, cancellation rate, avg delay, on-time %, and per-task duration accuracy.
 
 ## Todo
- - [ ] Remove google calendar event on task deletion
+ - [X] Remove google calendar event on task deletion
  - [X] Fix scheduling so that it respects task duration
  - [X] Make labels color coded on google calender
  - [ ] Visualize schedule blocks
