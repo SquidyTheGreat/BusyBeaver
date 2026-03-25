@@ -19,16 +19,29 @@
 <!-- Date picker + run scheduler -->
 <div class="card mb-4">
   <div class="card-body">
-    <form method="post" action="/schedule/run/" class="row g-2 align-items-end">
-      {% csrf_token %}
+    <div class="row g-2 align-items-end">
       <div class="col-auto">
         <label class="form-label mb-1 small fw-semibold">Schedule for date</label>
-        <input type="date" name="target_date" class="form-control form-control-sm" value="{{ target|date:'Y-m-d' }}">
+        <input type="date" id="schedule-date" name="target_date" class="form-control form-control-sm" value="{{ target|date:'Y-m-d' }}">
       </div>
       <div class="col-auto">
-        <button class="btn btn-primary btn-sm"><i class="bi bi-magic"></i> Auto-schedule</button>
+        <a id="view-link" href="/schedule/?target_date={{ target|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-calendar-date"></i> View</a>
       </div>
-    </form>
+      <div class="col-auto">
+        <form method="post" action="/schedule/run/" id="run-form">
+          {% csrf_token %}
+          <input type="hidden" name="target_date" id="run-date" value="{{ target|date:'Y-m-d' }}">
+          <button class="btn btn-primary btn-sm"><i class="bi bi-magic"></i> Auto-schedule</button>
+        </form>
+      </div>
+      <div class="col-auto">
+        <form method="post" action="/schedule/clear/" id="clear-form" onsubmit="return confirm('Clear all scheduled tasks for this date?')">
+          {% csrf_token %}
+          <input type="hidden" name="target_date" id="clear-date" value="{{ target|date:'Y-m-d' }}">
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Clear Schedule</button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -44,7 +57,7 @@
         {% if block.allowed_labels.exists %}
         <div class="mt-1">
           {% for l in block.allowed_labels.all %}
-          <span class="badge rounded-pill" style="background:{{ l.color }}">{{ l.name }}</span>
+          <span class="badge rounded-pill" style="background:{{ l.color|color_hex }}">{{ l.name }}</span>
           {% endfor %}
         </div>
         {% else %}
@@ -86,4 +99,14 @@
   No tasks scheduled for {{ target|date:"M j" }}. Run the auto-scheduler above.
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('schedule-date').addEventListener('change', function () {
+  document.getElementById('run-date').value   = this.value;
+  document.getElementById('clear-date').value = this.value;
+  document.getElementById('view-link').href   = '/schedule/?target_date=' + this.value;
+});
+</script>
 {% endblock %}

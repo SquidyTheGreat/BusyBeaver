@@ -83,10 +83,15 @@ def run_scheduler(request):
 
     pending = list(Task.objects.filter(status__in=[Task.STATUS_PENDING, Task.STATUS_SCHEDULED]).prefetch_related('labels'))
     blocks = list(ScheduleBlock.objects.filter(is_active=True).prefetch_related('allowed_labels'))
+
+    integration = CalendarIntegration.objects.filter(is_active=True).first()
+    if integration and integration.event_calendar_id:
+        from .services.event_conflicts import apply_event_conflicts
+        blocks = apply_event_conflicts(blocks, target, integration)
+
     result = ScheduleTask.create_schedule(pending, blocks, target)
 
     # Push newly scheduled tasks to Google Calendar if connected
-    integration = CalendarIntegration.objects.filter(is_active=True).first()
     if integration:
         from .services.google_calendar import create_or_update_event
         for task in result['scheduled']:
@@ -100,7 +105,46 @@ def run_scheduler(request):
         f'Scheduled {result["scheduled_count"]} tasks, '
         f'{result["unscheduled_count"]} could not be placed.'
     )
-    return redirect('schedule_view')
+    return redirect(f'/schedule/?target_date={target_str}')
+
+
+# ── Clear schedule for a date ─────────────────────────────────────────────────
+
+@require_POST
+def clear_schedule(request):
+    from datetime import datetime as dt
+    from tasks.models import Task
+
+    target_str = request.POST.get('target_date', '')
+    try:
+        target = dt.strptime(target_str, '%Y-%m-%d').date()
+    except ValueError:
+        messages.warning(request, 'Invalid date.')
+        return redirect('schedule_view')
+
+    tasks = Task.objects.filter(scheduled_start__date=target).exclude(
+        status__in=[Task.STATUS_COMPLETED, Task.STATUS_SKIPPED, Task.STATUS_CANCELLED]
+    )
+
+    integration = CalendarIntegration.objects.filter(is_active=True).first()
+    if integration:
+        from .services.google_calendar import delete_event
+
+    count = 0
+    for task in tasks:
+        if integration and task.google_event_id:
+            try:
+                delete_event(task, integration)
+            except Exception:
+                pass
+        task.status = Task.STATUS_PENDING
+        task.scheduled_start = None
+        task.scheduled_end = None
+        task.save(update_fields=['status', 'scheduled_start', 'scheduled_end'])
+        count += 1
+
+    messages.success(request, f'Cleared {count} task(s) for {target.strftime("%b %d")}.')
+    return redirect(f'/schedule/?target_date={target_str}')
 
 
 # ── Google Calendar sync ──────────────────────────────────────────────────────
@@ -143,5 +187,18 @@ def set_calendar(request):
         integration.calendar_id = calendar_id
         integration.calendar_name = calendar_name
         integration.save(update_fields=['calendar_id', 'calendar_name'])
-        messages.success(request, f'Active calendar set to "{calendar_name}".')
+        messages.success(request, f'Task calendar set to "{calendar_name}".')
+    return redirect('calendar_list')
+
+
+@require_POST
+def set_event_calendar(request):
+    calendar_id = request.POST.get('calendar_id')
+    calendar_name = request.POST.get('calendar_name', calendar_id)
+    integration = CalendarIntegration.objects.filter(is_active=True).first()
+    if integration:
+        integration.event_calendar_id = calendar_id
+        integration.event_calendar_name = calendar_name
+        integration.save(update_fields=['event_calendar_id', 'event_calendar_name'])
+        messages.success(request, f'Event calendar set to "{calendar_name}".')
     return redirect('calendar_list')

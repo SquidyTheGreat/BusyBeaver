@@ -42,13 +42,17 @@ class Command(BaseCommand):
             ScheduleBlock.objects.filter(is_active=True).prefetch_related('allowed_labels')
         )
 
+        integration = CalendarIntegration.objects.filter(is_active=True).first()
+        if integration and integration.event_calendar_id:
+            from scheduling.services.event_conflicts import apply_event_conflicts
+            blocks = apply_event_conflicts(blocks, target, integration)
+
         result = ScheduleTask.create_schedule(pending, blocks, target)
         self.stdout.write(
             f'Scheduled {result["scheduled_count"]} tasks, '
             f'{result["unscheduled_count"]} could not be placed.'
         )
 
-        integration = CalendarIntegration.objects.filter(is_active=True).first()
         if integration:
             for task in result['scheduled']:
                 try:

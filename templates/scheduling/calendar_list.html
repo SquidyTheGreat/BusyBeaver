@@ -13,7 +13,7 @@
   </div>
 </div>
 {% else %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <strong>Connected:</strong> {{ integration.calendar_name }}
     {% if integration.last_synced %}
@@ -24,26 +24,53 @@
 </div>
 
 {% if calendars %}
-<h6>Choose active calendar</h6>
-<div class="list-group" style="max-width:600px">
-  {% for cal in calendars %}
-  <div class="list-group-item d-flex justify-content-between align-items-center">
-    <div>
-      <div class="fw-semibold">{{ cal.name }}</div>
-      <div class="text-muted small">{{ cal.id }}</div>
+<div class="row g-4">
+
+  <div class="col-md-6">
+    <h6>Task calendar <span class="text-muted fw-normal small">— where BusyBeaver writes task events</span></h6>
+    <div class="list-group">
+      {% for cal in calendars %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">{{ cal.name }}</div>
+        {% if cal.id == integration.calendar_id %}
+        <span class="badge bg-success">Active</span>
+        {% else %}
+        <form method="post" action="/schedule/calendars/set/">
+          {% csrf_token %}
+          <input type="hidden" name="calendar_id" value="{{ cal.id }}">
+          <input type="hidden" name="calendar_name" value="{{ cal.name }}">
+          <button class="btn btn-outline-primary btn-sm">Use this</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
-    {% if cal.id == integration.calendar_id %}
-    <span class="badge bg-success">Active</span>
-    {% else %}
-    <form method="post" action="/schedule/calendars/set/">
-      {% csrf_token %}
-      <input type="hidden" name="calendar_id" value="{{ cal.id }}">
-      <input type="hidden" name="calendar_name" value="{{ cal.name }}">
-      <button class="btn btn-outline-primary btn-sm">Use this</button>
-    </form>
+  </div>
+
+  <div class="col-md-6">
+    <h6>Event calendar <span class="text-muted fw-normal small">— existing events to display alongside tasks</span></h6>
+    <div class="list-group">
+      {% for cal in calendars %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">{{ cal.name }}</div>
+        {% if cal.id == integration.event_calendar_id %}
+        <span class="badge bg-success">Active</span>
+        {% else %}
+        <form method="post" action="/schedule/calendars/set-event/">
+          {% csrf_token %}
+          <input type="hidden" name="calendar_id" value="{{ cal.id }}">
+          <input type="hidden" name="calendar_name" value="{{ cal.name }}">
+          <button class="btn btn-outline-primary btn-sm">Use this</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if integration.event_calendar_id %}
+    <div class="mt-2 text-muted small">Currently: {{ integration.event_calendar_name }}</div>
     {% endif %}
   </div>
-  {% endfor %}
+
 </div>
 {% else %}
 <div class="alert alert-warning">No writable calendars found.</div>

@@ -190,6 +190,8 @@ def delete_event(task, integration):
         task.save(update_fields=['google_event_id'])
     except Exception as exc:
         logger.warning('Could not delete calendar event for task %s: %s', task.id, exc)
+        task.google_event_id = ''
+        task.save(update_fields=['google_event_id'])
 
 
 def sync_from_calendar(integration):
