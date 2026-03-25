@@ -15,13 +15,13 @@
         <label class="form-label fw-semibold">{{ field.label }}</label>
         {% if field.name == 'energy_level' or field.name == 'mood' or field.name == 'stress_level' %}
         <div class="d-flex gap-3">
-          {% for choice_val, choice_label in field.field.choices %}
+          {% for choice_val, choice_label in field.field.choices %}{% if choice_val != '' %}
           <div class="form-check">
             <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="{{ field.html_name }}_{{ choice_val }}" value="{{ choice_val }}"
               {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
             <label class="form-check-label" for="{{ field.html_name }}_{{ choice_val }}">{{ choice_val }}</label>
           </div>
-          {% endfor %}
+          {% endif %}{% endfor %}
         </div>
         {% else %}
           {{ field }}

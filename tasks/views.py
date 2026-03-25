@@ -273,6 +273,8 @@ def feedback_form(request, token):
                 notes='Logged via feedback form',
             )
 
+        if request.POST.get('next') == 'health':
+            return redirect('health_create')
         return redirect('feedback_thanks', token=token)
     return render(request, 'feedback/form.html', {'form': form, 'task': task})
 

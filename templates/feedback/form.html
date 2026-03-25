@@ -33,13 +33,13 @@
           <label class="form-label fw-semibold">{{ field.label }}</label>
           {% if field.name == 'difficulty' %}
           <div class="d-flex gap-3">
-            {% for choice_val, choice_label in field.field.choices %}
+            {% for choice_val, choice_label in field.field.choices %}{% if choice_val != '' %}
             <div class="form-check">
               <input class="form-check-input" type="radio" name="{{ field.html_name }}" id="diff_{{ choice_val }}" value="{{ choice_val }}"
                 {% if field.value == choice_val|stringformat:"s" %}checked{% endif %}>
               <label class="form-check-label" for="diff_{{ choice_val }}">{{ choice_val }}</label>
             </div>
-            {% endfor %}
+            {% endif %}{% endfor %}
           </div>
           {% elif field.name == 'completed' %}
           <div class="form-check">
@@ -60,7 +60,8 @@
       <div class="alert alert-danger">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <button type="submit" class="btn btn-primary">Submit Feedback</button>
+      <button type="submit" name="next" value="" class="btn btn-primary">Submit Feedback</button>
+      <button type="submit" name="next" value="health" class="btn btn-outline-secondary ms-2">Submit &amp; Log Health</button>
     </form>
   </div>
 </div>
