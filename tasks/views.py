@@ -185,7 +185,7 @@ def label_create(request):
         class Meta:
             model = Label
             fields = ['name', 'color']
-            widgets = {'color': dj_forms.TextInput(attrs={'type': 'color'})}
+            widgets = {'color': dj_forms.RadioSelect}
 
     form = LabelForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -203,7 +203,7 @@ def label_edit(request, label_id):
         class Meta:
             model = Label
             fields = ['name', 'color']
-            widgets = {'color': dj_forms.TextInput(attrs={'type': 'color'})}
+            widgets = {'color': dj_forms.RadioSelect}
 
     label = get_object_or_404(Label, id=label_id)
     form = LabelForm(request.POST or None, instance=label)

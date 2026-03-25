@@ -3,12 +3,45 @@ from datetime import timedelta
 from django.db import models
 
 
+GCAL_COLOR_CHOICES = [
+    ('1',  'Lavender'),
+    ('2',  'Sage'),
+    ('3',  'Grape'),
+    ('4',  'Flamingo'),
+    ('5',  'Banana'),
+    ('6',  'Tangerine'),
+    ('7',  'Peacock'),
+    ('8',  'Graphite'),
+    ('9',  'Blueberry'),
+    ('10', 'Basil'),
+    ('11', 'Tomato'),
+]
+
+GCAL_COLOR_HEX = {
+    '1':  '#7986CB',
+    '2':  '#33B679',
+    '3':  '#8E24AA',
+    '4':  '#E67C73',
+    '5':  '#F6BF26',
+    '6':  '#F4511E',
+    '7':  '#039BE5',
+    '8':  '#616161',
+    '9':  '#3F51B5',
+    '10': '#0B8043',
+    '11': '#D50000',
+}
+
+
 class Label(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    color = models.CharField(max_length=7, default='#3498db')
+    color = models.CharField(max_length=2, choices=GCAL_COLOR_CHOICES, default='7')
 
     def __str__(self):
         return self.name
+
+    @property
+    def color_hex(self):
+        return GCAL_COLOR_HEX.get(self.color, '#039BE5')
 
 
 class Task(models.Model):

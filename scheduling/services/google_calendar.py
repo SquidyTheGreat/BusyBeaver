@@ -126,17 +126,22 @@ def create_or_update_event(task, integration):
     if feedback_link not in description:
         description = description.rstrip() + f'\n\n📝 Feedback: {feedback_link}'
 
+    first_label = task.labels.order_by('name').first()
+    if task.status == 'completed':
+        color_id = '8'  # Graphite — completed tasks stand out as done
+    elif first_label:
+        color_id = first_label.color
+    else:
+        color_id = None
+
     event_body = {
         'summary': task.name,
         'description': description,
         'start': {'dateTime': task.scheduled_start.isoformat(), 'timeZone': settings.TIME_ZONE},
         'end': {'dateTime': task.scheduled_end.isoformat(), 'timeZone': settings.TIME_ZONE},
-        # Graphite (grey) for completed tasks so they stand out as done
-        'colorId': '8' if task.status == 'completed' else None,
     }
-    # Google Calendar rejects colorId: null — remove it when not overriding
-    if event_body['colorId'] is None:
-        del event_body['colorId']
+    if color_id:
+        event_body['colorId'] = color_id
 
     if task.google_event_id:
         try:
