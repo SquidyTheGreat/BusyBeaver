@@ -28,6 +28,13 @@
     <button class="btn btn-outline-secondary btn-sm" type="submit">Filter</button>
     <a href="/" class="btn btn-link btn-sm">Clear</a>
   </div>
+  <div class="col-auto ms-auto">
+    {% if hide_recurring %}
+    <a href="?status={{ status_filter }}&label={{ label_filter }}" class="btn btn-secondary btn-sm">Show Recurring</a>
+    {% else %}
+    <a href="?status={{ status_filter }}&label={{ label_filter }}&hide_recurring=1" class="btn btn-outline-secondary btn-sm">Hide Recurring</a>
+    {% endif %}
+  </div>
 </form>
 
 {% if tasks %}
