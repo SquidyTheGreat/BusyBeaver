@@ -12,7 +12,9 @@ from .forms import TaskForm, HealthLogForm, FeedbackForm
 def task_list(request):
     status_filter = request.GET.get('status', '')
     label_filter = request.GET.get('label', '')
-    qs = Task.objects.prefetch_related('labels')
+    qs = Task.objects.prefetch_related('labels').exclude(
+        status=Task.STATUS_COMPLETED, recurrence=Task.RECUR_NONE
+    )
     if status_filter:
         qs = qs.filter(status=status_filter)
     if label_filter:

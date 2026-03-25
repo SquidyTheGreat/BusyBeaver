@@ -25,7 +25,7 @@ Single dashboard view. Aggregates metrics over the last 30 days: skip rate, canc
 
 ## Todo
  - [ ] Remove google calendar event on task deletion
- - [ ] Fix scheduling so that it respects task duration
+ - [X] Fix scheduling so that it respects task duration
  - [X] Make labels color coded on google calender
  - [ ] Visualize schedule blocks
  - [ ] Add required days or times to certain tasks
