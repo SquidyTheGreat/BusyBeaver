@@ -54,15 +54,15 @@
       <div class="card-body py-2">
         <div class="fw-semibold">{{ block.name }}</div>
         <div class="text-muted small">{{ block.start_time|time:"H:i" }} – {{ block.end_time|time:"H:i" }}</div>
-        {% if block.allowed_labels.exists %}
         <div class="mt-1">
+          {% if block.allowed_labels.exists %}
           {% for l in block.allowed_labels.all %}
           <span class="badge rounded-pill" style="background:{{ l.color|color_hex }}">{{ l.name }}</span>
           {% endfor %}
+          {% else %}
+          <span class="badge rounded-pill bg-secondary">All labels</span>
+          {% endif %}
         </div>
-        {% else %}
-        <div class="text-muted small mt-1">All labels</div>
-        {% endif %}
       </div>
     </div>
   </div>
