@@ -218,6 +218,25 @@ class HealthLog(models.Model):
         return f'Health {self.date} — energy {self.energy_level}, mood {self.mood}, stress {self.stress_level}'
 
 
+class EventLog(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=300, blank=True)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-start']
+
+    def __str__(self):
+        return f'{self.name} ({self.start:%Y-%m-%d %H:%M})'
+
+    @property
+    def duration(self):
+        return self.end - self.start
+
+
 class FeedbackResponse(models.Model):
     DIFFICULTY_CHOICES = [(i, str(i)) for i in range(1, 6)]
 

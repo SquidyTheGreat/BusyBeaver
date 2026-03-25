@@ -2,3 +2,5 @@
 # Reset stale tasks at 05:00, then run the scheduler at 05:05
 0 5 * * * cd /app && python manage.py reset_stale_tasks >> /var/log/cron.log 2>&1
 5 5 * * * cd /app && python manage.py run_scheduler     >> /var/log/cron.log 2>&1
+# Sync event calendar into EventLog at 23:00
+0 23 * * * cd /app && python manage.py sync_event_logs  >> /var/log/cron.log 2>&1
