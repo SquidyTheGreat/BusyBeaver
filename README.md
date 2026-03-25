@@ -29,4 +29,4 @@ Single dashboard view. Aggregates metrics over the last 30 days: skip rate, canc
  - [X] Make labels color coded on google calender
  - [ ] Visualize schedule blocks
  - [ ] Add required days or times to certain tasks
- - [ ] Add health metrics to feedback form
+ - [X] Add health metrics to feedback form

@@ -128,14 +128,17 @@ def create_or_update_event(task, integration):
 
     first_label = task.labels.order_by('name').first()
     if task.status == 'completed':
-        color_id = '8'  # Graphite — completed tasks stand out as done
-    elif first_label:
-        color_id = first_label.color
+        summary = f'✅ {task.name}'
+        color_id = '10'  # Basil
+    elif task.status == 'skipped':
+        summary = f'⏭ {task.name}'
+        color_id = '8'  # Graphite
     else:
-        color_id = None
+        summary = task.name
+        color_id = first_label.color if first_label else None
 
     event_body = {
-        'summary': task.name,
+        'summary': summary,
         'description': description,
         'start': {'dateTime': task.scheduled_start.isoformat(), 'timeZone': settings.TIME_ZONE},
         'end': {'dateTime': task.scheduled_end.isoformat(), 'timeZone': settings.TIME_ZONE},

@@ -124,13 +124,6 @@ def task_complete(request, task_id):
         except Exception:
             pass
 
-    # Reset recurring tasks back to pending for next occurrence
-    if task.recurrence != Task.RECUR_NONE:
-        task.status = Task.STATUS_PENDING
-        task.scheduled_start = None
-        task.scheduled_end = None
-        task.save(update_fields=['status', 'scheduled_start', 'scheduled_end'])
-
     messages.success(request, f'Completed "{task.name}".')
     return redirect('task_detail', task_id=task.id)
 
@@ -152,6 +145,17 @@ def task_skip(request, task_id):
         )
     task.status = Task.STATUS_SKIPPED
     task.save(update_fields=['status'])
+
+    if task.google_event_id:
+        try:
+            from scheduling.models import CalendarIntegration
+            from scheduling.services.google_calendar import create_or_update_event
+            integration = CalendarIntegration.objects.filter(is_active=True).first()
+            if integration:
+                create_or_update_event(task, integration)
+        except Exception:
+            pass
+
     messages.info(request, f'Skipped "{task.name}".')
     return redirect('task_list')
 

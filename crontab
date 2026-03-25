@@ -1,0 +1,4 @@
+# BusyBeaver daily jobs — times are UTC
+# Reset stale tasks at 05:00, then run the scheduler at 05:05
+0 5 * * * cd /app && python manage.py reset_stale_tasks >> /var/log/cron.log 2>&1
+5 5 * * * cd /app && python manage.py run_scheduler     >> /var/log/cron.log 2>&1
