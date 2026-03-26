@@ -103,7 +103,7 @@ class Task(models.Model):
     google_event_id = models.CharField(max_length=500, blank=True, null=True)
 
     # Effort: how hard the task feels (defaults to estimated_duration if unset)
-    effort = models.DurationField(null=True, blank=True)
+    effort = models.DurationField(default=estimated_duration, null=True, blank=True)
 
     # Learned scheduling preferences (updated by scheduler based on completion history)
     preferred_days = models.JSONField(default=list, blank=True)

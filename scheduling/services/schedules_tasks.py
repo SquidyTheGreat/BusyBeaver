@@ -83,7 +83,7 @@ class ScheduleTask:
                     'end': task_end.isoformat(),
                 })
                 logger.info('Scheduled "%s" in block "%s" %s–%s', task.name, block.name, cursor, task_end)
-                cursor = task_end
+                cursor = task_end + _break_padding(task)
                 use_priority = not use_priority
 
         unscheduled = [t for t in pending_tasks if t.id not in scheduled_ids]
@@ -152,6 +152,18 @@ class ScheduleTask:
 
         logger.info('Updated estimates for %d tasks', updated)
         return updated
+
+
+def _break_padding(task):
+    """Return the break duration to insert after a task based on BREAK_RATIO env var."""
+    import os
+    try:
+        ratio = float(os.environ.get('BREAK_RATIO', '0'))
+    except ValueError:
+        ratio = 0.0
+    if ratio <= 0:
+        return timedelta(0)
+    return timedelta(seconds=task.effort_value.total_seconds() * ratio)
 
 
 def _place_next(primary, fallback, scheduled_ids, block_label_ids, cursor, effort_total, block_end):
