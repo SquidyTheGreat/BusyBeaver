@@ -2,7 +2,10 @@
 A smart task tracking tool for busy beavers (with ADD)
 
 ## What It Is
-A Django 6.0.3 + PostgreSQL personal task scheduler that integrates with Google Calendar. It automatically schedules tasks into available time blocks, tracks execution history, and learns from past completions to improve time estimates and scheduling preferences.
+A Django 6.0.3 + PostgreSQL personal task scheduler that integrates with Google Calendar. It automatically schedules tasks into available time blocks, tracks execution history, and learns from past completions to improve time estimates and scheduling preferences. It also attempts to respect effort value of certain tasks. 
+
+## Effort Value
+Effort value roughly correlates to how much time it feels like a task took. This metric is similar to the concept of *spoons*. Total daily effort value should align with energy levels. Energy levels should be balanced throughout a week to prevent burnout (ie if Monday was busy make Tuesday lighter).
 
 ## How to Run (Docker)
 ```bash

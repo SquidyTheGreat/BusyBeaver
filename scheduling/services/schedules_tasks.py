@@ -35,8 +35,10 @@ class ScheduleTask:
             )
         ]
 
-        # Sort tasks: highest priority first; break ties by shortest duration (more tasks fit)
-        sorted_tasks = sorted(pending_tasks, key=lambda t: (-t.priority, t.estimated_duration))
+        # Priority queue: highest priority first, shortest duration as tiebreak
+        priority_queue = sorted(pending_tasks, key=lambda t: (-t.priority, t.estimated_duration))
+        # Effort queue: lowest effort_value first, highest priority as tiebreak
+        effort_queue = sorted(pending_tasks, key=lambda t: (t.effort_value, -t.priority))
 
         scheduled_ids = set()
         scheduled = []
@@ -46,22 +48,25 @@ class ScheduleTask:
             block_start = dj_timezone.make_aware(datetime.combine(target_date, block.start_time))
             block_end = dj_timezone.make_aware(datetime.combine(target_date, block.end_time))
             cursor = block_start
+            effort_total = block_start
 
             block_label_ids = set(block.allowed_labels.values_list('id', flat=True))
 
-            for task in sorted_tasks:
-                if task.id in scheduled_ids:
-                    continue
+            use_priority = True  # alternate between priority and effort queues
 
-                # Label check: if block restricts labels, task must share at least one
-                if block_label_ids:
-                    task_label_ids = set(task.labels.values_list('id', flat=True))
-                    if not (task_label_ids & block_label_ids):
-                        continue
+            while effort_total < block_end:
+                primary = priority_queue if use_priority else effort_queue
+                fallback = effort_queue if use_priority else priority_queue
 
-                task_end = cursor + task.estimated_duration
-                if task_end > block_end:
-                    continue  # doesn't fit remaining time in this block
+                placed = _place_next(
+                    primary, fallback,
+                    scheduled_ids, block_label_ids,
+                    cursor, effort_total, block_end,
+                )
+                if placed is None:
+                    break  # nothing fits in either queue
+
+                task, task_end, effort_total = placed
 
                 task.scheduled_start = cursor
                 task.scheduled_end = task_end
@@ -77,8 +82,9 @@ class ScheduleTask:
                     'start': cursor.isoformat(),
                     'end': task_end.isoformat(),
                 })
-                cursor = task_end
                 logger.info('Scheduled "%s" in block "%s" %s–%s', task.name, block.name, cursor, task_end)
+                cursor = task_end
+                use_priority = not use_priority
 
         unscheduled = [t for t in pending_tasks if t.id not in scheduled_ids]
 
@@ -146,3 +152,27 @@ class ScheduleTask:
 
         logger.info('Updated estimates for %d tasks', updated)
         return updated
+
+
+def _place_next(primary, fallback, scheduled_ids, block_label_ids, cursor, effort_total, block_end):
+    """
+    Try to place the first fitting task from `primary`, then from `fallback`.
+
+    A task fits only if BOTH its estimated_duration AND effort_value fit within
+    the remaining block time (neither may exceed the remaining capacity).
+
+    Returns (task, task_end) if a task was found, else None.
+    """
+    for queue in (primary, fallback):
+        for task in queue:
+            if task.id in scheduled_ids:
+                continue
+            if block_label_ids:
+                task_label_ids = set(task.labels.values_list('id', flat=True))
+                if not (task_label_ids & block_label_ids):
+                    continue
+            remaining = block_end - cursor
+            if task.estimated_duration > remaining or task.effort_value > remaining:
+                continue
+            return task, cursor + task.estimated_duration, effort_total + task.effort_value
+    return None

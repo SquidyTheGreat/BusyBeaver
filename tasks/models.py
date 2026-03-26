@@ -100,7 +100,10 @@ class Task(models.Model):
     recur_time = models.TimeField(null=True, blank=True)
 
     # Google Calendar
-    google_event_id = models.CharField(max_length=500, blank=True)
+    google_event_id = models.CharField(max_length=500, blank=True, null=True)
+
+    # Effort: how hard the task feels (defaults to estimated_duration if unset)
+    effort = models.DurationField(null=True, blank=True)
 
     # Learned scheduling preferences (updated by scheduler based on completion history)
     preferred_days = models.JSONField(default=list, blank=True)
@@ -124,6 +127,14 @@ class Task(models.Model):
     @property
     def estimated_minutes(self):
         return int(self.estimated_duration.total_seconds() // 60)
+
+    @property
+    def effort_value(self):
+        return self.effort if self.effort is not None else self.estimated_duration
+
+    @property
+    def effort_minutes(self):
+        return int(self.effort_value.total_seconds() // 60)
 
 
 class ScheduleBlock(models.Model):
