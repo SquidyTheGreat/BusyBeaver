@@ -43,12 +43,14 @@ class ScheduleTask:
         scheduled_ids = set()
         scheduled = []
         result_details = []
+        block_groups = []
 
         for block in applicable_blocks:
             block_start = dj_timezone.make_aware(datetime.combine(target_date, block.start_time))
             block_end = dj_timezone.make_aware(datetime.combine(target_date, block.end_time))
             cursor = block_start
             effort_total = block_start
+            block_tasks = []
 
             block_label_ids = set(block.allowed_labels.values_list('id', flat=True))
 
@@ -75,6 +77,7 @@ class ScheduleTask:
 
                 scheduled_ids.add(task.id)
                 scheduled.append(task)
+                block_tasks.append(task)
                 result_details.append({
                     'task_id': task.id,
                     'task_name': task.name,
@@ -86,6 +89,14 @@ class ScheduleTask:
                 cursor = task_end + _break_padding(task)
                 use_priority = not use_priority
 
+            if block_tasks:
+                block_groups.append({
+                    'block_name': block.name,
+                    'block_start': block_start,
+                    'block_end': block_end,
+                    'tasks': block_tasks,
+                })
+
         unscheduled = [t for t in pending_tasks if t.id not in scheduled_ids]
 
         logger.info(
@@ -96,6 +107,7 @@ class ScheduleTask:
             'scheduled': scheduled,
             'unscheduled': unscheduled,
             'details': result_details,
+            'block_groups': block_groups,
             'scheduled_count': len(scheduled),
             'unscheduled_count': len(unscheduled),
             'total': len(pending_tasks),

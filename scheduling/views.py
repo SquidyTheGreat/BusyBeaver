@@ -93,12 +93,16 @@ def run_scheduler(request):
 
     # Push newly scheduled tasks to Google Calendar if connected
     if integration:
-        from .services.google_calendar import create_or_update_event
+        from .services.google_calendar import create_or_update_event, push_block_summaries
         for task in result['scheduled']:
             try:
                 create_or_update_event(task, integration)
             except Exception as exc:
                 messages.warning(request, f'Calendar push failed for "{task.name}": {exc}')
+        try:
+            push_block_summaries(result['block_groups'], integration)
+        except Exception as exc:
+            messages.warning(request, f'Block summary push failed: {exc}')
 
     messages.success(
         request,
@@ -127,12 +131,16 @@ def clear_schedule(request):
     )
 
     integration = CalendarIntegration.objects.filter(is_active=True).first()
+    gcal = None
     if integration:
-        from .services.google_calendar import delete_event
+        from .services.google_calendar import delete_event, refresh_if_needed
+        from googleapiclient.discovery import build
+        creds = refresh_if_needed(integration)
+        gcal = build('calendar', 'v3', credentials=creds)
 
     count = 0
     for task in tasks:
-        if integration and task.google_event_id:
+        if gcal and task.google_event_id:
             try:
                 delete_event(task, integration)
             except Exception:
@@ -142,6 +150,20 @@ def clear_schedule(request):
         task.scheduled_end = None
         task.save(update_fields=['status', 'scheduled_start', 'scheduled_end'])
         count += 1
+
+    # Delete block summary calendar events and records for this date
+    from tasks.models import BlockSummary
+    summaries = BlockSummary.objects.filter(block_start__date=target)
+    for bs in summaries:
+        if gcal and bs.calendar_event_id:
+            try:
+                gcal.events().delete(
+                    calendarId=integration.calendar_id,
+                    eventId=bs.calendar_event_id,
+                ).execute()
+            except Exception:
+                pass
+        bs.delete()
 
     messages.success(request, f'Cleared {count} task(s) for {target.strftime("%b %d")}.')
     return redirect(f'/schedule/?target_date={target_str}')

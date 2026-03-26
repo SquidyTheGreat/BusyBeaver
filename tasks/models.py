@@ -248,6 +248,26 @@ class EventLog(models.Model):
         return self.end - self.start
 
 
+class BlockSummary(models.Model):
+    """Represents a scheduled block instance; linked to via a tokenized summary form."""
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    block_name = models.CharField(max_length=100)
+    block_start = models.DateTimeField()
+    block_end = models.DateTimeField()
+    tasks = models.ManyToManyField('Task', blank=True, related_name='block_summaries')
+    calendar_event_id = models.CharField(max_length=500, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-block_start']
+
+    def __str__(self):
+        return f'{self.block_name} summary ({self.block_start:%Y-%m-%d})'
+
+    def summary_url(self, base_url=''):
+        return f'{base_url}/feedback/summary/{self.token}/'
+
+
 class FeedbackResponse(models.Model):
     DIFFICULTY_CHOICES = [(i, str(i)) for i in range(1, 6)]
 

@@ -194,6 +194,65 @@ def delete_event(task, integration):
         task.save(update_fields=['google_event_id'])
 
 
+def push_block_summaries(block_groups, integration):
+    """
+    For each block group returned by create_schedule, create or update a BlockSummary
+    record and push a 15-minute summary event to Google Calendar immediately after the block.
+    """
+    from datetime import timedelta
+    from googleapiclient.discovery import build
+    from tasks.models import BlockSummary
+
+    creds = refresh_if_needed(integration)
+    service = build('calendar', 'v3', credentials=creds)
+
+    for group in block_groups:
+        summary, _ = BlockSummary.objects.get_or_create(
+            block_name=group['block_name'],
+            block_start=group['block_start'],
+            defaults={'block_end': group['block_end']},
+        )
+        summary.block_end = group['block_end']
+        summary.save(update_fields=['block_end'])
+        summary.tasks.set(group['tasks'])
+
+        summary_link = summary.summary_url(settings.BASE_URL)
+        task_names = ', '.join(t.name for t in group['tasks'])
+        description = (
+            f"Summary for block: {group['block_name']}\n"
+            f"Tasks: {task_names}\n\n"
+            f"📋 Submit feedback: {summary_link}"
+        )
+
+        event_start = group['block_end']
+        event_end = event_start + timedelta(minutes=15)
+        event_body = {
+            'summary': f'📋 {group["block_name"]} — Summary',
+            'description': description,
+            'start': {'dateTime': event_start.isoformat(), 'timeZone': settings.TIME_ZONE},
+            'end': {'dateTime': event_end.isoformat(), 'timeZone': settings.TIME_ZONE},
+            'colorId': '8',  # Graphite
+        }
+
+        if summary.calendar_event_id:
+            try:
+                service.events().patch(
+                    calendarId=integration.calendar_id,
+                    eventId=summary.calendar_event_id,
+                    body=event_body,
+                ).execute()
+                continue
+            except Exception:
+                summary.calendar_event_id = ''
+
+        event = service.events().insert(
+            calendarId=integration.calendar_id,
+            body=event_body,
+        ).execute()
+        summary.calendar_event_id = event['id']
+        summary.save(update_fields=['calendar_event_id'])
+
+
 def sync_from_calendar(integration):
     """
     Fetch all tasks with a google_event_id and detect moves.

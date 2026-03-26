@@ -319,3 +319,101 @@ def feedback_form(request, token):
 def feedback_thanks(request, token):
     task = get_object_or_404(Task, feedback_token=token)
     return render(request, 'feedback/thanks.html', {'task': task})
+
+
+def block_summary_form(request, token):
+    from .models import BlockSummary
+    from .forms import HealthLogForm
+
+    summary = get_object_or_404(BlockSummary, token=token)
+    tasks = list(summary.tasks.order_by('scheduled_start').prefetch_related('labels'))
+
+    if request.method == 'POST':
+        from datetime import datetime as dt
+        for task in tasks:
+            action = request.POST.get(f'task_{task.id}_action', 'none')
+            if action == 'none' or task.status in (Task.STATUS_COMPLETED, Task.STATUS_SKIPPED):
+                continue
+
+            actual_start = actual_end = None
+            try:
+                s = request.POST.get(f'task_{task.id}_actual_start', '')
+                e = request.POST.get(f'task_{task.id}_actual_end', '')
+                if s:
+                    actual_start = dt.fromisoformat(s)
+                    actual_start = timezone.make_aware(actual_start) if actual_start.tzinfo is None else actual_start
+                if e:
+                    actual_end = dt.fromisoformat(e)
+                    actual_end = timezone.make_aware(actual_end) if actual_end.tzinfo is None else actual_end
+            except ValueError:
+                pass
+
+            raw_difficulty = request.POST.get(f'task_{task.id}_difficulty', '3')
+            try:
+                difficulty = max(1, min(5, int(raw_difficulty)))
+            except (ValueError, TypeError):
+                difficulty = 3
+
+            fb = FeedbackResponse(
+                task=task,
+                difficulty=difficulty,
+                notes=request.POST.get(f'task_{task.id}_notes', ''),
+            )
+            if actual_start and actual_end and actual_end > actual_start:
+                fb.actual_duration_minutes = max(1, round((actual_end - actual_start).total_seconds() / 60))
+            fb.save()
+
+            if action == 'skip':
+                _mark_task_skip(task)
+            else:
+                if actual_start and actual_end and actual_end > actual_start:
+                    ExecutionLog.objects.create(
+                        task=task,
+                        scheduled_start=task.scheduled_start,
+                        actual_start=actual_start,
+                        actual_end=actual_end,
+                        status=ExecutionLog.STATUS_COMPLETED,
+                        notes='Logged via block summary',
+                    )
+                _mark_task_complete(task)
+
+        # Apply effort adjustment to all tasks in the block
+        effort_multipliers = {
+            'too_easy': 0.75,
+            'easy':     0.90,
+            'neutral':  1.0,
+            'hard':     1.10,
+            'too_hard': 1.25,
+        }
+        block_effort = request.POST.get('block_effort', 'neutral')
+        multiplier = effort_multipliers.get(block_effort, 1.0)
+        if multiplier != 1.0:
+            from datetime import timedelta
+            for task in tasks:
+                base = task.effort_value
+                new_seconds = base.total_seconds() * multiplier
+                task.effort = timedelta(seconds=new_seconds)
+                task.save(update_fields=['effort'])
+
+        health_form = HealthLogForm(request.POST, prefix='health')
+        if health_form.is_valid():
+            health_form.save()
+
+        messages.success(request, f'Summary for "{summary.block_name}" saved.')
+        return redirect('task_list')
+
+    _effort_choices = [
+        ('too_easy', 'Too Easy'),
+        ('easy',     'Easy'),
+        ('neutral',  'Neutral'),
+        ('hard',     'Hard'),
+        ('too_hard', 'Too Hard'),
+    ]
+    health_form = HealthLogForm(prefix='health')
+    return render(request, 'feedback/block_summary.html', {
+        'summary': summary,
+        'tasks': tasks,
+        'health_form': health_form,
+        'difficulty_choices': FeedbackResponse.DIFFICULTY_CHOICES,
+        'effort_choices': _effort_choices,
+    })

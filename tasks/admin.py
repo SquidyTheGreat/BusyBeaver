@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Label, Task, ScheduleBlock, ExecutionLog, TaskMoveLog, HealthLog, FeedbackResponse
+from .models import Label, Task, ScheduleBlock, ExecutionLog, TaskMoveLog, HealthLog, FeedbackResponse, BlockSummary
 
 
 @admin.register(Label)
@@ -41,3 +41,11 @@ class HealthLogAdmin(admin.ModelAdmin):
 @admin.register(FeedbackResponse)
 class FeedbackResponseAdmin(admin.ModelAdmin):
     list_display = ['id', 'task', 'submitted_at', 'difficulty', 'completed', 'actual_duration_minutes']
+
+
+@admin.register(BlockSummary)
+class BlockSummaryAdmin(admin.ModelAdmin):
+    list_display = ['id', 'block_name', 'block_start', 'block_end', 'created_at', 'calendar_event_id']
+    list_filter = ['block_name']
+    filter_horizontal = ['tasks']
+    readonly_fields = ['token', 'created_at']

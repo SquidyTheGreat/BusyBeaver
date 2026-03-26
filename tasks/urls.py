@@ -19,4 +19,5 @@ urlpatterns = [
     path('health/new/', views.health_create, name='health_create'),
     path('feedback/<uuid:token>/', views.feedback_form, name='feedback_form'),
     path('feedback/<uuid:token>/thanks/', views.feedback_thanks, name='feedback_thanks'),
+    path('feedback/summary/<uuid:token>/', views.block_summary_form, name='block_summary_form'),
 ]

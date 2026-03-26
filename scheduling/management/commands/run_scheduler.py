@@ -54,12 +54,18 @@ class Command(BaseCommand):
         )
 
         if integration:
+            from scheduling.services.google_calendar import push_block_summaries
             for task in result['scheduled']:
                 try:
                     create_or_update_event(task, integration)
                 except Exception as exc:
                     logger.warning('Calendar push failed for task %s: %s', task.id, exc)
                     self.stderr.write(f'Calendar push failed for "{task.name}": {exc}')
+            try:
+                push_block_summaries(result['block_groups'], integration)
+            except Exception as exc:
+                logger.warning('Block summary push failed: %s', exc)
+                self.stderr.write(f'Block summary push failed: {exc}')
             self.stdout.write(self.style.SUCCESS('Calendar sync complete.'))
         else:
             self.stdout.write('No active CalendarIntegration — skipping calendar push.')
